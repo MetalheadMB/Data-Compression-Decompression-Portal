@@ -11,11 +11,11 @@ A modern web application that allows users to upload files and apply various dat
   - Huffman Coding (Variable-length encoding)
   - Run-Length Encoding (RLE)
   - LZ77 (Dictionary-based compression)
-- **📊 Real-time Progress**: Visual feedback during compression process
-- **📈 Compression Statistics**: Display compression ratio, file sizes, and processing time
-- **⬇️ Download Functionality**: Download compressed and decompressed files
-- **🎨 Responsive Design**: Modern UI with smooth animations
-- **🎓 Algorithm Education**: Detailed explanations of each compression algorithm
+- **Real-time Progress**: Visual feedback during compression process
+- **Compression Statistics**: Display compression ratio, file sizes, and processing time
+- **Download Functionality**: Download compressed and decompressed files
+- **Responsive Design**: Modern UI with smooth animations
+- **Algorithm Education**: Detailed explanations of each compression algorithm
 
 ## 🛠️ Tech Stack
 
@@ -148,9 +148,7 @@ This creates a `dist` folder with optimized production files.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -161,8 +159,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-If you have any questions or run into issues, please open an issue on GitHub or contact the development team.
+If you have any questions or run into issues:
+Check the Issues page
+Create a new issue with detailed information
+Contact the maintainers
 
 ---
 
-**Made with ❤️ using React and TypeScript**
+**Made with ❤️ by Mitul**
