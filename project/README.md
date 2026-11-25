@@ -95,9 +95,11 @@ npm run build
 
 ## Deployment
 
-Deployed on **Vercel**, which rebuilds on every push to `main` (Root Directory: `project`, Framework: Vite, Build: `npm run build`, Output: `dist`). It's a static site with no server.
+Deployed on **Vercel**, which rebuilds on every push to `main` (Root Directory: `project`, Output: `dist`). It's a static site with no server.
 
-`.github/workflows/ci.yml` runs lint, typecheck, tests and build on every push and pull request.
+`vercel.json` sets Vercel's build command to `npm run verify`, which runs lint, typecheck, the tests and then the build. If any check fails, the Vercel build fails, nothing is deployed, and the previous version stays live.
+
+`.github/workflows/ci.yml` runs the same checks on every push and pull request, so failures also show as a red X on GitHub.
 
 ## Tech stack
 
