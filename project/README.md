@@ -1,168 +1,107 @@
 # Data Compression & Decompression Portal
 
-A modern web application that allows users to upload files and apply various data compression algorithms including Huffman coding, Run-Length Encoding (RLE), and LZ77.
+A browser-based portal that compresses and decompresses files with three algorithms implemented from scratch in TypeScript: **Huffman coding**, **run-length encoding (RLE)** and **LZ77**. Every compression is verified by decompressing the output and comparing it byte for byte with the original. Files never leave the browser.
 
-![Compression Portal](https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=1200&h=400&fit=crop)
+## Features
 
-## 🚀 Features
+- **Lossless round trips for all three algorithms**, covered by an automated test suite (`npm test`)
+- **Real output files**: bit-packed into a `Uint8Array` behind a small header, saved as `.cmpz`. Upload a `.cmpz` file to decompress it later.
+- **Measured results**: the compression ratio and space saved come from the actual output file, header and code table included. Compress and decompress throughput are shown in MB/s.
+- **Live progress** from a Web Worker, so the page stays responsive on large files (up to 50 MB)
+- **CRC-32 integrity check**: corrupted `.cmpz` files are rejected instead of silently producing wrong data
+- Works on any file type, because the algorithms operate on raw bytes
 
-- **📁 File Upload**: Support for text files, documents, and various data formats (up to 50MB)
-- **🔧 Multiple Compression Algorithms**: 
-  - Huffman Coding (Variable-length encoding)
-  - Run-Length Encoding (RLE)
-  - LZ77 (Dictionary-based compression)
-- **Real-time Progress**: Visual feedback during compression process
-- **Compression Statistics**: Display compression ratio, file sizes, and processing time
-- **Download Functionality**: Download compressed and decompressed files
-- **Responsive Design**: Modern UI with smooth animations
-- **Algorithm Education**: Detailed explanations of each compression algorithm
+## Algorithms
 
-## 🛠️ Tech Stack
+| | Huffman coding | Run-length encoding | LZ77 |
+|---|---|---|---|
+| Exploits | Some byte values are more common than others | Runs of the same byte | Repeated byte sequences |
+| Output | Variable-length bit code per byte | PackBits packets | Literals and 2-byte (offset, length) pointers |
+| Complexity | O(n + k log k), k = distinct bytes | O(n) | O(n × max chain length) |
+| Good for | Text, source code | Bitmaps with flat areas, sparse data | Text, JSON, logs, code |
 
-- **Frontend**: React 18 with TypeScript
-- **Styling**: Tailwind CSS
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
-- **Build Tool**: Vite
-- **Linting**: ESLint with TypeScript support
+### Huffman coding (`src/compression/huffman.ts`)
 
-## 📦 Getting Started
+1. Count the frequency of each byte value.
+2. Build the tree with a **binary min-heap**: repeatedly pop the two lightest nodes and push their merged parent. That's O(k log k).
+3. Take each byte's code length from its depth in the tree, then assign **canonical codes**: sort by (length, byte) and number the codes consecutively.
+4. Write the **code table** (count, then one `(byte, length)` pair per symbol), then the codes **bit-packed** MSB-first.
+5. The decoder rebuilds the same canonical codes from the lengths alone and reads one bit at a time.
 
-### Prerequisites
+### Run-length encoding (`src/compression/rle.ts`)
 
-- Node.js (v16 or higher)
-- npm or yarn
+PackBits-style. A control byte `0–127` means "copy the next `n + 1` bytes literally". A control byte `128–255` means "repeat the next byte `n − 125` times" (runs of 3–130). Counts are never confused with data, and incompressible input grows by at most 1 byte per 128.
 
-### Installation
+### LZ77 (`src/compression/lz77.ts`)
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/compression-portal.git
-cd compression-portal
-```
+LZSS-style tokens with a **4 KB sliding window** and matches of **3–18 bytes**. Each match fits in 2 bytes: 12 bits of offset and 4 bits of length. Eight tokens share a flag byte saying which are literals and which are matches. Matches are found with **hash chains** (like zlib): a hash of the next 3 bytes leads to earlier positions with the same prefix, and up to 128 candidates are checked. Matches may overlap the bytes being written; the decoder copies byte by byte, so this works.
 
-2. Install dependencies:
-```bash
-npm install
-```
+## File format (`.cmpz`)
 
-3. Start the development server:
-```bash
-npm run dev
-```
+| Bytes | Content |
+|---|---|
+| 0–3 | Magic `CMPZ` |
+| 4 | Format version (`1`) |
+| 5 | Algorithm (`1` Huffman, `2` RLE, `3` LZ77) |
+| 6–9 | Original size (u32, big-endian) |
+| 10–13 | CRC-32 of the original |
+| 14– | Algorithm payload |
 
-4. Open your browser and navigate to `http://localhost:5173`
+## Benchmarks
 
-## 📜 Available Scripts
+10 MB of real text (README and TypeScript declaration files), Node 22. Ratio = original ÷ compressed.
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
+| Algorithm | Ratio | Compress | Decompress |
+|---|---|---|---|
+| Huffman | 1.46:1 | ~30 MB/s | ~27 MB/s |
+| RLE | 1.02:1 | ~130 MB/s | ~240 MB/s |
+| LZ77 | 3.71:1 | ~44 MB/s | ~210 MB/s |
+| gzip -6 (reference) | 6.47:1 | | |
 
-## 🧮 Compression Algorithms
+gzip uses DEFLATE, which runs LZ77 with a 32 KB window and then Huffman-codes the result. That's why it beats either algorithm on its own. Random data doesn't compress: LZ77 grows it by about 12.5%, because every byte becomes a literal costing 9 bits.
 
-### Huffman Coding
-- **Description**: Uses variable-length codes based on character frequency
-- **Best for**: Text files, source code, natural language
-- **Time Complexity**: O(n log n)
-- **Space Efficiency**: Excellent for text with varied character frequencies
-
-### Run-Length Encoding (RLE)
-- **Description**: Replaces consecutive identical characters with count + character
-- **Best for**: Images with large uniform areas, repetitive data
-- **Time Complexity**: O(n)
-- **Space Efficiency**: Great for data with long runs of identical values
-
-### LZ77
-- **Description**: Replaces repeated substrings with references to previous occurrences
-- **Best for**: General text, documents, mixed content
-- **Time Complexity**: O(n²)
-- **Space Efficiency**: Good general-purpose compression
-
-## 🏗️ Project Structure
+## Project structure
 
 ```
-compression-portal/
+project/
 ├── src/
-│   ├── components/          # React components
-│   │   ├── AlgorithmSelector.tsx
-│   │   ├── CompressionProgress.tsx
-│   │   ├── CompressionResults.tsx
-│   │   ├── FileUpload.tsx
-│   │   └── Header.tsx
-│   ├── types/              # TypeScript type definitions
-│   │   └── index.ts
-│   ├── utils/              # Utility functions
-│   │   └── compressionAlgorithms.ts
-│   ├── App.tsx             # Main application component
-│   ├── index.css           # Global styles
-│   ├── main.tsx            # Application entry point
-│   └── vite-env.d.ts       # Vite type definitions
-├── index.html              # HTML template
-├── package.json            # Dependencies and scripts
-├── tailwind.config.js      # Tailwind CSS configuration
-├── tsconfig.json           # TypeScript configuration
-├── vite.config.ts          # Vite configuration
-└── README.md               # Project documentation
+│   ├── compression/          # Pure algorithm code, no React
+│   │   ├── bytes.ts          # Byte/bit readers and writers, CRC-32
+│   │   ├── huffman.ts        # Min-heap, canonical codes, encode/decode
+│   │   ├── rle.ts            # PackBits RLE
+│   │   ├── lz77.ts           # LZSS tokens with hash-chain matching
+│   │   ├── container.ts      # .cmpz header, dispatch, CRC check
+│   │   └── roundtrip.test.ts # Round-trip and format tests (Vitest)
+│   ├── workers/
+│   │   ├── compression.worker.ts  # Runs compress + verify off the main thread
+│   │   └── protocol.ts            # Message types and runInWorker()
+│   ├── components/           # Upload, algorithm picker, progress, results
+│   ├── types/
+│   └── App.tsx               # Screen flow: upload → algorithm → processing → results
+└── vite.config.ts
 ```
 
-## 🎯 Usage
-
-1. **Upload a File**: Drag and drop or click to select a file (text files work best)
-2. **Choose Algorithm**: Select from Huffman, RLE, or LZ77 based on your file type
-3. **Start Compression**: Watch the real-time progress as your file is processed
-4. **View Results**: See compression statistics and download the compressed file
-5. **Decompress** (if supported): Download the decompressed version to verify integrity
-
-## 🔧 Configuration
-
-The application supports various file types and has configurable limits:
-
-- **Max File Size**: 50MB
-- **Supported Types**: .txt, .json, .csv, .log, and other text formats
-- **Compression Window**: 4KB for LZ77 algorithm
-- **Look-ahead Buffer**: 18 bytes for LZ77 algorithm
-
-## 🚀 Deployment
-
-The project is configured for easy deployment on platforms like:
-
-- **Netlify**: Drag and drop the `dist` folder after running `npm run build`
-- **Vercel**: Connect your GitHub repository for automatic deployments
-- **GitHub Pages**: Use GitHub Actions for automated deployment
-
-### Build for Production
+## Getting started
 
 ```bash
+cd project
+npm install
+npm run dev        # http://localhost:5173
+npm test           # round-trip test suite
+npm run lint
+npm run typecheck
 npm run build
 ```
 
-This creates a `dist` folder with optimized production files.
+## Deployment
 
-## 🤝 Contributing
+Deployed on **Vercel**, which rebuilds on every push to `main` (Root Directory: `project`, Framework: Vite, Build: `npm run build`, Output: `dist`). It's a static site with no server.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+`.github/workflows/ci.yml` runs lint, typecheck, tests and build on every push and pull request.
 
+## Tech stack
 
-
-## 🙏 Acknowledgments
-
-- Compression algorithms implemented based on standard computer science principles
-- UI/UX inspired by modern web design practices
-- Icons provided by [Lucide React](https://lucide.dev/)
-- Animations powered by [Framer Motion](https://www.framer.com/motion/)
-
-## 📞 Support
-
-If you have any questions or run into issues:
-Check the Issues page
-Create a new issue with detailed information
-Contact the maintainers
+React 18 · TypeScript · Vite · Tailwind CSS · Framer Motion · Lucide icons · Vitest
 
 ---
 

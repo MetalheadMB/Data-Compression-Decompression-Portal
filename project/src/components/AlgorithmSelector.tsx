@@ -1,4 +1,4 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Repeat, Binary, Info } from 'lucide-react';
 import { CompressionAlgorithm, AlgorithmInfo } from '../types';
@@ -11,28 +11,28 @@ interface AlgorithmSelectorProps {
 const algorithmInfo: Record<CompressionAlgorithm, AlgorithmInfo> = {
   huffman: {
     name: 'Huffman Coding',
-    description: 'Uses variable-length codes for characters based on frequency. More frequent characters get shorter codes.',
-    complexity: 'O(n log n)',
-    bestFor: ['Text files', 'Source code', 'Natural language'],
+    description: 'Gives frequent bytes shorter bit codes. Builds the code tree with a min-heap and stores a compact canonical code table in the file.',
+    complexity: 'O(n + k log k), k = distinct bytes',
+    bestFor: ['Text files', 'Source code', 'Data with a skewed byte distribution'],
     worstFor: ['Random data', 'Already compressed files', 'Binary data']
   },
   rle: {
     name: 'Run-Length Encoding',
-    description: 'Replaces consecutive identical characters with a count and the character.',
+    description: 'Replaces runs of the same byte with a count and the byte (PackBits format). Bytes without runs are copied in literal blocks.',
     complexity: 'O(n)',
-    bestFor: ['Images with large areas of same color', 'Simple graphics', 'Repetitive data'],
-    worstFor: ['Text with no repetition', 'Random data', 'Complex images']
+    bestFor: ['Uncompressed bitmaps with large flat areas', 'Sparse data with long zero runs', 'Simple graphics'],
+    worstFor: ['Normal text (almost no runs)', 'Random data', 'Photos']
   },
   lz77: {
     name: 'LZ77',
-    description: 'Replaces repeated substrings with references to previous occurrences.',
-    complexity: 'O(n²)',
+    description: 'Replaces repeated byte sequences with a 2-byte pointer (offset, length) into the last 4 KB. Uses hash chains to find matches fast.',
+    complexity: 'O(n × chain length)',
     bestFor: ['General text', 'Documents', 'Mixed content'],
     worstFor: ['Very short files', 'Completely random data']
   }
 };
 
-const algorithmIcons: Record<CompressionAlgorithm, React.ReactNode> = {
+const algorithmIcons: Record<CompressionAlgorithm, ReactNode> = {
   huffman: <Zap className="h-5 w-5" />,
   rle: <Repeat className="h-5 w-5" />,
   lz77: <Binary className="h-5 w-5" />
